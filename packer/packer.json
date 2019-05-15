@@ -1,0 +1,33 @@
+{
+    "variables": {
+      "account_file": "account.json"
+    },
+    "builders": [
+    {
+        "name": "client",
+        "type": "googlecompute",
+        "account_file": "{{user `account_file`}}",
+        "project_id": "assetstore",
+        "source_image": "centos-7-v20190326",
+        "ssh_username": "c9s",
+        "instance_name": "hashi-client-{{isotime | clean_image_name}}",
+        "image_name": "hashi-client-{{isotime | clean_image_name}}",
+        "zone": "us-central1-a",
+        "disable_default_service_account": true
+    }],
+    "provisioners": [{
+      "type": "shell",
+      "inline": [
+        "sudo yum install -y epel-release",
+        "sudo yum install -y https://repo.saltstack.com/yum/redhat/salt-repo-latest-2.el7.noarch.rpm",
+        "sudo yum clean expire-cache",
+        "sudo yum install -y salt-minion",
+        "sudo systemctl start salt-minion",
+        "sudo mkdir -p /etc/consul.d /etc/nomad.d /opt/consul"
+      ]
+    },{
+        "type": "salt-masterless",
+        "local_state_tree": "./salt",
+        "skip_bootstrap": true
+    }]
+  }
