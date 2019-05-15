@@ -115,7 +115,7 @@ export default class HashiClient extends pulumi.ComponentResource {
             metadata: {
                 sshKeys: `${options.sshUser}:${fs.readFileSync(options.publicKeyPath || "", "utf-8")}`,
             },
-            metadataStartupScript: fs.readFileSync(`${__dirname}/startup.sh`, "utf-8"),
+            metadataStartupScript: fs.readFileSync(`${__dirname}/files/startup.sh`, "utf-8"),
             networkInterfaces: [{
                 accessConfigs: [{
                     natIp: "",
