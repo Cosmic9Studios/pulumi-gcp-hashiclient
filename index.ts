@@ -23,8 +23,6 @@ export default class HashiClient extends pulumi.ComponentResource {
         super("c9s:component:HashiClient", name);
         options = { 
             networkTier: "STANDARD",
-            sshUser: "c9s",
-            publicKeyPath: `${os.homedir()}/.ssh/id_rsa.pub`,
             description: "Created by Pulumi",
             labels: {},
             serviceAccountName: "c9s-bot",
