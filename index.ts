@@ -9,8 +9,6 @@ interface IHashiClientOptions {
     networkLink: string | pulumi.Output<string>,
     targetSize: number,
     networkTier?: string,
-    sshUser?: string,
-    publicKeyPath?: string,
     description?: string,
     labels?: pulumi.Input<{[key: string]: pulumi.Input<string>}>,
     serviceAccountName?: string,
@@ -112,9 +110,6 @@ export default class HashiClient extends pulumi.ComponentResource {
             instanceDescription: options.description,
             labels: options.labels,
             machineType: options.machineType,
-            metadata: {
-                sshKeys: `${options.sshUser}:${fs.readFileSync(options.publicKeyPath || "", "utf-8")}`,
-            },
             metadataStartupScript: fs.readFileSync(`${__dirname}/files/startup.sh`, "utf-8"),
             networkInterfaces: [{
                 accessConfigs: [{
