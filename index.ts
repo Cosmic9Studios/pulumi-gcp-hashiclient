@@ -32,17 +32,18 @@ export default class HashiClient extends pulumi.ComponentResource {
         };
 
         const instanceTemplate = this.instanceTemplate(options);
-        if (options.targetSize === 1) {
-            const instance = new gcp.compute.InstanceFromTemplate("client", {
-                sourceInstanceTemplate: instanceTemplate.selfLink,
-                zone: options.zone,
-            }, { parent: this });
+        const targetPool = new gcp.compute.TargetPool("client-pool", {}, { parent: this });
+        const instanceGroupManager = this.instanceGroupManager(instanceTemplate.selfLink, targetPool.selfLink, options.targetSize);
 
-            this.address = instance.networkInterfaces[0].accessConfigs[0].natIp;  
+        if (options.targetSize === 1) {
+            // Gets address from instancegroup ip
+            this.address = instanceGroupManager.instanceGroup.apply(instanceGroup => pulumi.output(gcp.compute.getInstanceGroup({
+                selfLink: instanceGroup
+            })).apply(x => pulumi.output(gcp.compute.getInstance({
+                selfLink: x.instances[0]
+            })).networkInterfaces[0].accessConfigs[0].natIp));
         }
         else {
-            const targetPool = new gcp.compute.TargetPool("client-pool", {}, { parent: this });
-            const instanceGroupManager = this.instanceGroupManager(instanceTemplate.selfLink, targetPool.selfLink, options.targetSize);
             const globalAddress = new gcp.compute.GlobalAddress("client-global-address", {}, { parent: this });
             const sslCertificate = new gcp.compute.MangedSslCertificate(`c9s-cert`, {
                 managed: {
@@ -132,6 +133,7 @@ export default class HashiClient extends pulumi.ComponentResource {
                 instanceTemplate: instanceTemplateLink,
                 name: "live"
             }],
+            waitForInstances: true,
             namedPorts: [{
                 name: "fabio",
                 port: 9999,
