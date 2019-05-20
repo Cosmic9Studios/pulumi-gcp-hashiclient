@@ -14,6 +14,7 @@ interface IHashiClientOptions {
     serviceAccountName?: string,
     tags?: Array<string>,
     zone?: string,
+    domain?: string
 }
 
 export default class HashiClient extends pulumi.ComponentResource {
@@ -28,6 +29,7 @@ export default class HashiClient extends pulumi.ComponentResource {
             serviceAccountName: "c9s-bot",
             tags: ["allow-icmp"], 
             zone: "us-central1-a", 
+            domain: "mydomain.com",
             ...options 
         };
 
@@ -45,9 +47,9 @@ export default class HashiClient extends pulumi.ComponentResource {
         }
         else {
             const globalAddress = new gcp.compute.GlobalAddress("client-global-address", {}, { parent: this });
-            const sslCertificate = new gcp.compute.MangedSslCertificate(`c9s-cert`, {
+            const sslCertificate = new gcp.compute.MangedSslCertificate(`cert`, {
                 managed: {
-                    domains: "cosmic9studios.com",
+                    domains: options.domain,
                 },
             }, { parent: this });
 
