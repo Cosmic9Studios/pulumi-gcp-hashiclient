@@ -1,4 +1,4 @@
-# hashiServer
+# HashiClient
 
 Terraform script to create compute instances all running consul and nomad clients
 
@@ -11,7 +11,7 @@ packer build packer.json -var 'account_file=path/to/account.json'
 
 Utilize the resource 
 ```
-const hashiServer = new HashiClient("Client", { 
+const hashiClient = new HashiClient("Client", { 
     // Mandatory properties (you must set these yourself)
     imageUrl: "gcp image self link" 
     machineType: "g1-small"
