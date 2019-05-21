@@ -93,7 +93,7 @@ export default class HashiClient extends pulumi.ComponentResource {
                 target: targetPool.selfLink,
             }, { parent: this });
 
-            this.address = globalAddress.address;
+            this.address = ipAddress.address;
         }       
         
         this.registerOutputs({
