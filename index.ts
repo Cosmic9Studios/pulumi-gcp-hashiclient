@@ -18,7 +18,8 @@ interface IHashiClientOptions {
 }
 
 export default class HashiClient extends pulumi.ComponentResource {
-    public address: pulumi.Output<string>;
+    public regionalAddress: pulumi.Output<string>;
+    public globalAddress: pulumi.Output<string>;
 
     constructor(name: string, options: IHashiClientOptions) {
         super("c9s:component:HashiClient", name);
@@ -39,11 +40,13 @@ export default class HashiClient extends pulumi.ComponentResource {
 
         if (options.targetSize === 1) {
             // Gets address from instancegroup ip
-            this.address = instanceGroupManager.instanceGroup.apply(instanceGroup => pulumi.output(gcp.compute.getInstanceGroup({
+            this.regionalAddress = instanceGroupManager.instanceGroup.apply(instanceGroup => pulumi.output(gcp.compute.getInstanceGroup({
                 selfLink: instanceGroup
             })).apply(x => pulumi.output(gcp.compute.getInstance({
                 selfLink: x.instances[0]
             })).networkInterfaces[0].accessConfigs[0].natIp));
+
+            this.globalAddress = this.regionalAddress;
         }
         else {
             const globalAddress = new gcp.compute.GlobalAddress("client-global-address", {}, { parent: this });
@@ -93,11 +96,13 @@ export default class HashiClient extends pulumi.ComponentResource {
                 target: targetPool.selfLink,
             }, { parent: this });
 
-            this.address = ipAddress.address;
+            this.regionalAddress = ipAddress.address;
+            this.globalAddress = globalAddress.address;
         }       
         
         this.registerOutputs({
-            address: this.address
+            regionalAddress: this.regionalAddress,
+            globalAddress: this.globalAddress
         });
     }
 
