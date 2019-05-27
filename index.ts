@@ -38,67 +38,55 @@ export default class HashiClient extends pulumi.ComponentResource {
         const targetPool = new gcp.compute.TargetPool("client-pool", {}, { parent: this });
         const instanceGroupManager = this.instanceGroupManager(instanceTemplate.selfLink, targetPool.selfLink, options.targetSize);
 
-        if (options.targetSize === 1) {
-            // Gets address from instancegroup ip
-            this.regionalAddress = instanceGroupManager.instanceGroup.apply(instanceGroup => pulumi.output(gcp.compute.getInstanceGroup({
-                selfLink: instanceGroup
-            })).apply(x => pulumi.output(gcp.compute.getInstance({
-                selfLink: x.instances[0]
-            })).networkInterfaces[0].accessConfigs[0].natIp));
+        const globalAddress = new gcp.compute.GlobalAddress("client-global-address", {}, { parent: this });
+        const sslCertificate = new gcp.compute.MangedSslCertificate("cert", {
+            managed: {
+                domains: options.domain,
+            },
+        }, { parent: this });
 
-            this.globalAddress = this.regionalAddress;
-        }
-        else {
-            const globalAddress = new gcp.compute.GlobalAddress("client-global-address", {}, { parent: this });
-            const sslCertificate = new gcp.compute.MangedSslCertificate(`cert`, {
-                managed: {
-                    domains: options.domain,
-                },
-            }, { parent: this });
+        const ipAddress = new gcp.compute.Address("client-ip-address", {
+            networkTier: options.networkTier,
+        }, { parent: this });
 
-            const ipAddress = new gcp.compute.Address("client-ip-address", {
-                networkTier: options.networkTier,
-            }, { parent: this });
+        const healthCheck = new gcp.compute.HttpHealthCheck("client-health-check", {
+            port: 9999,
+            requestPath: "/health",
+        }, { parent: this });
 
-            const healthCheck = new gcp.compute.HttpHealthCheck(`client-health-check`, {
-                port: 9999,
-                requestPath: "/health",
-            }, { parent: this });
+        const backendService = new gcp.compute.BackendService("client-backend", {
+            backends: [{
+                group: instanceGroupManager.instanceGroup,
+            }],
+            healthChecks: healthCheck.selfLink,
+            portName: "fabio",
+            protocol: "HTTP",
+        }, { parent: this });
 
-            const backendService = new gcp.compute.BackendService(`client-backend`, {
-                backends: [{
-                    group: instanceGroupManager.instanceGroup,
-                }],
-                healthChecks: healthCheck.selfLink,
-                portName: "fabio",
-                protocol: "HTTP",
-            }, { parent: this });
+        const urlMap = new gcp.compute.URLMap("client-url-map", {
+            defaultService: backendService.selfLink
+        }, { parent: this });
 
-            const urlMap = new gcp.compute.URLMap("client-url-map", {
-                defaultService: backendService.selfLink
-            }, { parent: this });
+        const targetHttpsProxy = new gcp.compute.TargetHttpsProxy("client", {
+            sslCertificates: [sslCertificate.selfLink],
+            urlMap: urlMap.selfLink,
+        }, { parent: this});
+        
+        const globalForwardingRule = new gcp.compute.GlobalForwardingRule("client-region", {
+            ipAddress: globalAddress.address,
+            portRange: "443",
+            target: targetHttpsProxy.selfLink,
+        }, { parent: this });
+        
+        const forwardingRule = new gcp.compute.ForwardingRule("client-http-forwarding-rule", {
+            ipAddress: ipAddress.address,
+            networkTier: options.networkTier,
+            portRange: "4646",
+            target: targetPool.selfLink,
+        }, { parent: this });
 
-            const targetHttpsProxy = new gcp.compute.TargetHttpsProxy(`client`, {
-                sslCertificates: [sslCertificate.selfLink],
-                urlMap: urlMap.selfLink,
-            }, { parent: this});
-            
-            const globalForwardingRule = new gcp.compute.GlobalForwardingRule("client-region", {
-                ipAddress: globalAddress.address,
-                portRange: "443",
-                target: targetHttpsProxy.selfLink,
-            }, { parent: this });
-            
-            const forwardingRule = new gcp.compute.ForwardingRule("client-http-forwarding-rule", {
-                ipAddress: ipAddress.address,
-                networkTier: options.networkTier,
-                portRange: "4646",
-                target: targetPool.selfLink,
-            }, { parent: this });
-
-            this.regionalAddress = ipAddress.address;
-            this.globalAddress = globalAddress.address;
-        }       
+        this.regionalAddress = ipAddress.address;
+        this.globalAddress = globalAddress.address;   
         
         this.registerOutputs({
             regionalAddress: this.regionalAddress,
@@ -118,10 +106,6 @@ export default class HashiClient extends pulumi.ComponentResource {
             machineType: options.machineType,
             metadataStartupScript: fs.readFileSync(`${__dirname}/files/startup.sh`, "utf-8"),
             networkInterfaces: [{
-                accessConfigs: [{
-                    natIp: "",
-                    networkTier: options.networkTier,
-                }],
                 network: options.networkLink,
             }],
             serviceAccount: {
